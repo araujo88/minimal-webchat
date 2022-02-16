@@ -15,17 +15,23 @@
 
 int server_socket; // global variable in order to be handled after SIGINT
 pthread_t t1, t2;
+pthread_mutex_t mutex;
 
-void handle_signal(int sig);                                   // interrupt signal handler
-void check_socket(int socket);                                 // checks socket
-void check_connection(int socket, struct sockaddr_in address); // checks connection
-void *send_message(void *socket);                              // sends message
-void *recv_message(void *socket);                              // receives message
+void handle_signal(int sig);                                                               // interrupt signal handler
+void check_socket(int socket);                                                             // checks socket
+void check_connection(int socket, struct sockaddr_in address);                             // checks connection
+void check_bind(int server_socket, struct sockaddr_in *server_address);                    // check binding
+void check_listen(int server_socket, int number_connections);                              // check connection listening
+void check_accept(int server_socket, int *client_socket, struct sockaddr *client_address); // check accepting connection
+void *send_message(void *socket);                                                          // sends message
+void *recv_message(void *socket);                                                          // receives message
 
 int main(int argc, char *argv[])
 {
     char *ip = argv[1];
     int port = atoi(argv[2]);
+
+    pthread_mutex_init(&mutex, 0);
 
     printf("IP address: %s - port: %d\n", ip, port);
 
@@ -34,11 +40,13 @@ int main(int argc, char *argv[])
     check_socket(server_socket);
 
     struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET;         // specifies protocol IPv4
-    server_address.sin_port = htons(port);       // specifies port (host to network)
-    server_address.sin_addr.s_addr = INADDR_ANY; // converts IP string to standard IPv4 decimal notation
+    server_address.sin_family = AF_INET;            // specifies protocol IPv4
+    server_address.sin_port = htons(port);          // specifies port (host to network)
+    server_address.sin_addr.s_addr = inet_addr(ip); // converts IP string to standard IPv4 decimal notation
 
-    check_connection(server_socket, server_address);
+    puts("Binding socket ...");
+    check_bind(server_socket, &server_address);
+    puts("Binding done!");
 
     signal(SIGINT, handle_signal);
     while (true)
@@ -55,6 +63,7 @@ void handle_signal(int sig)
     printf("Terminating threads\n");
     pthread_join(t1, NULL);
     pthread_join(t2, NULL);
+    pthread_mutex_destroy(&mutex);
     // closes the socket
     puts("Closing socket ...");
     if (close(server_socket) == 0)
@@ -92,7 +101,37 @@ void check_connection(int socket, struct sockaddr_in address)
     puts("Connected!");
 }
 
-void *send_message(void *socket)
+void check_bind(int server_socket, struct sockaddr_in *server_address)
+{
+    if ((bind(server_socket, (struct sockaddr *)server_address, sizeof(*server_address))) < 0)
+    {
+        perror("Bind failed");
+        printf("Error code: %d\n", errno);
+        exit(1);
+    }
+}
+
+void check_listen(int server_socket, int num_connections)
+{
+    if ((listen(server_socket, num_connections)) < 0)
+    {
+        perror("Listen failed");
+        printf("Error code: %d\n", errno);
+        exit(1);
+    }
+}
+
+void check_accept(int server_socket, int *client_socket, struct sockaddr *client_address)
+{
+    if ((*client_socket = accept(server_socket, (struct sockaddr *)client_address, (socklen_t *)sizeof(client_address))) < 0)
+    {
+        perror("Accept failed");
+        printf("Error code: %d\n", errno);
+        exit(1);
+    }
+}
+
+void *send_message(void *client_socket)
 {
     char buffer[BUFFER_SIZE];
     char *date;
@@ -105,20 +144,34 @@ void *send_message(void *socket)
 
     scanf("%s", message);
     sprintf(buffer, "%s - %s", date, message);
-    send(*(int *)socket, buffer, strlen(buffer), 0); // sends message
+
+    pthread_mutex_lock(&mutex);
+    send(*(int *)client_socket, buffer, strlen(buffer), 0); // sends message
     printf("Sent: %s\n", buffer);
     memset(buffer, 0, sizeof(buffer));
+    free(client_socket);
+    client_socket = NULL;
+    pthread_mutex_unlock(&mutex);
 
     return NULL;
 }
 
-void *recv_message(void *socket)
+void *recv_message(void *client_socket)
 {
+    struct sockaddr_in client_address;
     char buffer[BUFFER_SIZE];
 
-    recv(*(int *)socket, &buffer, sizeof(buffer), 0); // receives message
+    check_listen(server_socket, 1);
+
+    check_accept(server_socket, (int *)client_socket, (struct sockaddr *)&client_address);
+
+    pthread_mutex_lock(&mutex);
+    recv(*(int *)client_socket, &buffer, sizeof(buffer), 0); // receives message
     printf("Received: %s\n", buffer);
     memset(buffer, 0, sizeof(buffer));
+    free(client_socket);
+    client_socket = NULL;
+    pthread_mutex_unlock(&mutex);
 
     return NULL;
 }
