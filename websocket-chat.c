@@ -51,8 +51,13 @@ int main(int argc, char *argv[])
     signal(SIGINT, handle_signal);
     while (true)
     {
-        pthread_create(&t1, NULL, send_message, (void *)&server_socket);
-        pthread_create(&t2, NULL, recv_message, (void *)&server_socket);
+        int *client_socket = (int *)malloc(sizeof(int));
+        struct sockaddr_in client_address;
+
+        check_listen(server_socket, 1);
+        check_accept(server_socket, (int *)client_socket, (struct sockaddr *)&client_address);
+        pthread_create(&t1, NULL, send_message, (void *)client_socket);
+        pthread_create(&t2, NULL, recv_message, (void *)client_socket);
     }
     return 0;
 }
@@ -158,12 +163,7 @@ void *send_message(void *client_socket)
 
 void *recv_message(void *client_socket)
 {
-    struct sockaddr_in client_address;
     char buffer[BUFFER_SIZE];
-
-    check_listen(server_socket, 1);
-
-    check_accept(server_socket, (int *)client_socket, (struct sockaddr *)&client_address);
 
     pthread_mutex_lock(&mutex);
     recv(*(int *)client_socket, &buffer, sizeof(buffer), 0); // receives message
