@@ -24,14 +24,19 @@ void *recv_message(void *socket);                              // receives messa
 
 int main(int argc, char *argv[])
 {
+    char *ip = argv[1];
+    int port = atoi(argv[2]);
+
+    printf("IP address: %s - port: %d\n", ip, port);
+
     puts("Creating socket ...");
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
     check_socket(server_socket);
 
     struct sockaddr_in server_address;
-    server_address.sin_family = AF_INET;                 // specifies protocol IPv4
-    server_address.sin_port = htons(argv[2]);            // specifies port (host to network)
-    server_address.sin_addr.s_addr = inet_addr(argv[1]); // converts IP string to standard IPv4 decimal notation
+    server_address.sin_family = AF_INET;         // specifies protocol IPv4
+    server_address.sin_port = htons(port);       // specifies port (host to network)
+    server_address.sin_addr.s_addr = INADDR_ANY; // converts IP string to standard IPv4 decimal notation
 
     check_connection(server_socket, server_address);
 
@@ -103,6 +108,8 @@ void *send_message(void *socket)
     send(*(int *)socket, buffer, strlen(buffer), 0); // sends message
     printf("Sent: %s\n", buffer);
     memset(buffer, 0, sizeof(buffer));
+
+    return NULL;
 }
 
 void *recv_message(void *socket)
@@ -112,4 +119,6 @@ void *recv_message(void *socket)
     recv(*(int *)socket, &buffer, sizeof(buffer), 0); // receives message
     printf("Received: %s\n", buffer);
     memset(buffer, 0, sizeof(buffer));
+
+    return NULL;
 }
