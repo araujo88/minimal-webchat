@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -Wall
 CCLIBS=-lpthread
-BINS=websocket-chat
+BINS=client
 
 all: $(BINS)
 
