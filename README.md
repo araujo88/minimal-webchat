@@ -15,7 +15,7 @@ A simple webchat using socket.h library from C/Unix
 
 ### Client-side
 
-`./cliente <ip_address> <port>`
+`./client <ip_address> <port>`
 
 ## TODOs
 
