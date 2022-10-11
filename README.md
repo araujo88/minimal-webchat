@@ -1,7 +1,18 @@
-# websocket-chat
+# minimal-webchat
 
 A simple webchat using socket.h library from C/Unix
 
-## TODO
+## Build
 
-Whitespace handling.
+`make clean` <br>
+`make`
+
+## Usage
+
+### Server-side
+
+`./server <ip_address> <port>`
+
+### Client-side
+
+`./cliente <ip_address> <port>`
